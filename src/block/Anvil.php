@@ -102,6 +102,10 @@ class Anvil extends Transparent implements Fallable{
 		return parent::place($tx, $item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
+
 	public function onHitGround(FallingBlock $blockEntity) : bool{
 		if(lcg_value() < 0.05 + (round($blockEntity->getFallDistance()) - 1) * 0.05){
 			if($this->damage !== self::VERY_DAMAGED){
@@ -128,7 +132,7 @@ class Anvil extends Transparent implements Fallable{
 	public function attemptDamage() : void{
 		$world = $this->position->world;
 		assert($world !== null);
-		if(!$world->getBlock($this->position)->isSameState(VanillaBlocks::ANVIL())){
+		if($world->getBlock($this->position)->getTypeId() !== BlockTypeIds::ANVIL){
 			return;
 		}
 		if(mt_rand(0, 100) > self::DAMAGE_CHANCE){

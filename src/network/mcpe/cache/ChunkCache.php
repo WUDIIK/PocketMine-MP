@@ -125,7 +125,7 @@ class ChunkCache implements ChunkListener{
 					$chunk,
 					$typeConverter,
 					$this->caches[$chunkHash][$protocolId],
-					$this->compressor,
+					$this->compressor
 				)
 			);
 

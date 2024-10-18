@@ -57,4 +57,8 @@ class Water extends Liquid{
 		}
 		return true;
 	}
+
+	public function isLayerSupported(int $layer) : bool{
+		return parent::isLayerSupported($layer) || $layer === 1;
+	}
 }

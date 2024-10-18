@@ -64,12 +64,12 @@ final class MinimumCostFlowCalculator{
 			$z = $blockZ + $dz;
 
 			if(!isset($this->flowCostVisited[$hash = World::blockHash($x, $y, $z)])){
-				if(!$this->world->isInWorld($x, $y, $z) || !$this->canFlowInto($this->world->getBlockAt($x, $y, $z))){
+				if(!$this->world->isInWorld($x, $y, $z) || !$this->canFlowInto($block = $this->world->getBlockAt($x, $y, $z))){
 					$this->flowCostVisited[$hash] = self::BLOCKED;
-				}elseif($this->world->getBlockAt($x, $y - 1, $z)->canBeFlowedInto()){
+				}elseif(($down = $this->world->getBlockAt($x, $y - 1, $z))->canBeFlowedInto() || $down->mayWaterloggingFlowInto()){
 					$this->flowCostVisited[$hash] = self::CAN_FLOW_DOWN;
 				}else{
-					$this->flowCostVisited[$hash] = self::CAN_FLOW;
+					$this->flowCostVisited[$hash] = $block->getWaterloggingLevel() < 2 ? self::BLOCKED : self::CAN_FLOW;
 				}
 			}
 
@@ -107,20 +107,32 @@ final class MinimumCostFlowCalculator{
 			$y = $originY + $dy;
 			$z = $originZ + $dz;
 
-			if(!$this->world->isInWorld($x, $y, $z) || !$this->canFlowInto($this->world->getBlockAt($x, $y, $z))){
+			if(!$this->world->isInWorld($x, $y, $z) || !$this->canFlowInto($block = $this->world->getBlockAt($x, $y, $z))){
 				$this->flowCostVisited[World::blockHash($x, $y, $z)] = self::BLOCKED;
-			}elseif($this->world->getBlockAt($x, $y - 1, $z)->canBeFlowedInto()){
+			}elseif($this->world->getBlockAt($originX, $originY, $originZ)->getSupportType($j) === SupportType::FULL){
+				$this->flowCostVisited[World::blockHash($x, $y, $z)] = self::BLOCKED;
+				unset($flowCost[$j]);
+			}elseif(($down = $this->world->getBlockAt($x, $y - 1, $z))->canBeFlowedInto() || $down->mayWaterloggingFlowInto()){
 				$this->flowCostVisited[World::blockHash($x, $y, $z)] = self::CAN_FLOW_DOWN;
 				$flowCost[$j] = $maxCost = 0;
 			}elseif($maxCost > 0){
-				$this->flowCostVisited[World::blockHash($x, $y, $z)] = self::CAN_FLOW;
-				$opposite = Facing::opposite($j);
-				$flowCost[$j] = $this->calculateFlowCost($x, $y, $z, 1, $maxCost, $opposite, $opposite);
-				$maxCost = min($maxCost, $flowCost[$j]);
+				if($block->getWaterloggingLevel() < 2){
+					$this->flowCostVisited[World::blockHash($x, $y, $z)] = self::BLOCKED;
+				}else{
+					$this->flowCostVisited[World::blockHash($x, $y, $z)] = self::CAN_FLOW;
+					$opposite = Facing::opposite($j);
+					$flowCost[$j] = $this->calculateFlowCost($x, $y, $z, 1, $maxCost, $opposite, $opposite);
+					/** @phpstan-ignore-next-line */
+					$maxCost = min($maxCost, $flowCost[$j]);
+				}
 			}
 		}
 
 		$this->flowCostVisited = [];
+
+		if($flowCost === []){
+			return [];
+		}
 
 		$minCost = min($flowCost);
 

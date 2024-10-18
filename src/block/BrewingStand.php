@@ -128,4 +128,8 @@ class BrewingStand extends Transparent{
 			}
 		}
 	}
+
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
 }

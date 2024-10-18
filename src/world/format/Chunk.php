@@ -29,6 +29,7 @@ namespace pocketmine\world\format;
 use pocketmine\block\Block;
 use pocketmine\block\tile\Tile;
 use pocketmine\data\bedrock\BiomeIds;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use function array_map;
 
 class Chunk{
@@ -62,6 +63,9 @@ class Chunk{
 
 	protected HeightArray $heightMap;
 
+	/** @var int */
+	protected $dimensionId;
+
 	/**
 	 * @param SubChunk[] $subChunks
 	 */
@@ -77,6 +81,13 @@ class Chunk{
 		$this->heightMap = HeightArray::fill($val); //TODO: what about lazily initializing this?
 
 		$this->terrainPopulated = $terrainPopulated;
+
+		// TODO: Hack! There's no way to cleanly do this without diverging from pmmp too much, so this is the best workaround for that
+		$this->dimensionId = match($this->getBiomeId(0, 0, 0)) {
+			BiomeIds::HELL, BiomeIds::BASALT_DELTAS, BiomeIds::SOULSAND_VALLEY, BiomeIds::CRIMSON_FOREST, BiomeIds::WARPED_FOREST => DimensionIds::NETHER,
+			BiomeIds::THE_END => DimensionIds::THE_END,
+			default => DimensionIds::OVERWORLD
+		};
 	}
 
 	/**
@@ -95,15 +106,15 @@ class Chunk{
 	 *
 	 * @return int the blockstate ID of the given block
 	 */
-	public function getBlockStateId(int $x, int $y, int $z) : int{
-		return $this->getSubChunk($y >> SubChunk::COORD_BIT_SIZE)->getBlockStateId($x, $y & SubChunk::COORD_MASK, $z);
+	public function getBlockStateId(int $x, int $y, int $z, int $layer = 0) : int{
+		return $this->getSubChunk($y >> SubChunk::COORD_BIT_SIZE)->getBlockStateId($x, $y & SubChunk::COORD_MASK, $z, $layer);
 	}
 
 	/**
 	 * Sets the blockstate at the given coordinate by internal ID.
 	 */
-	public function setBlockStateId(int $x, int $y, int $z, int $block) : void{
-		$this->getSubChunk($y >> SubChunk::COORD_BIT_SIZE)->setBlockStateId($x, $y & SubChunk::COORD_MASK, $z, $block);
+	public function setBlockStateId(int $x, int $y, int $z, int $block, int $layer = 0) : void{
+		$this->getSubChunk($y >> SubChunk::COORD_BIT_SIZE)->setBlockStateId($x, $y & SubChunk::COORD_MASK, $z, $block, $layer);
 		$this->terrainDirtyFlags |= self::DIRTY_FLAG_BLOCKS;
 	}
 
@@ -275,6 +286,17 @@ class Chunk{
 
 	public function clearTerrainDirtyFlags() : void{
 		$this->terrainDirtyFlags = self::DIRTY_FLAGS_NONE;
+	}
+
+	public function getDimensionId() : int{
+		return $this->dimensionId;
+	}
+
+	/**
+	 * @see DimensionIds
+	 */
+	public function setDimensionId(int $dimension) : void{
+		$this->dimensionId = $dimension;
 	}
 
 	public function getSubChunk(int $y) : SubChunk{

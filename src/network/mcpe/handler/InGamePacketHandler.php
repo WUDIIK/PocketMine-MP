@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\handler;
 
 use pocketmine\block\BaseSign;
+use pocketmine\block\ItemFrame;
 use pocketmine\block\Lectern;
 use pocketmine\block\tile\Sign;
 use pocketmine\block\utils\SignText;
@@ -60,6 +61,7 @@ use pocketmine\network\mcpe\protocol\CraftingEventPacket;
 use pocketmine\network\mcpe\protocol\EmotePacket;
 use pocketmine\network\mcpe\protocol\InteractPacket;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
+use pocketmine\network\mcpe\protocol\ItemFrameDropItemPacket;
 use pocketmine\network\mcpe\protocol\ItemStackRequestPacket;
 use pocketmine\network\mcpe\protocol\ItemStackResponsePacket;
 use pocketmine\network\mcpe\protocol\LabTablePacket;
@@ -77,6 +79,7 @@ use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\PlayerHotbarPacket;
 use pocketmine\network\mcpe\protocol\PlayerInputPacket;
 use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RequestChunkRadiusPacket;
 use pocketmine\network\mcpe\protocol\ServerSettingsRequestPacket;
 use pocketmine\network\mcpe\protocol\SetActorMotionPacket;
@@ -539,15 +542,19 @@ class InGamePacketHandler extends ChunkRequestPacketHandler{
 	private function onFailedBlockAction(Vector3 $blockPos, ?int $face) : void{
 		if($blockPos->distanceSquared($this->player->getLocation()) < 10000){
 			$blocks = $blockPos->sidesArray();
+			$world = $this->player->getWorld();
+			$typeConverter = $this->session->getTypeConverter();
 			if($face !== null){
 				$sidePos = $blockPos->getSide($face);
 
 				/** @var Vector3[] $blocks */
 				array_push($blocks, ...$sidePos->sidesArray()); //getAllSides() on each of these will include $blockPos and $sidePos because they are next to each other
 			}else{
-				$blocks[] = $blockPos;
+				foreach($world->createBlockUpdatePackets($typeConverter, [$blockPos], true) as $packet){
+					$this->session->sendDataPacket($packet);
+				}
 			}
-			foreach($this->player->getWorld()->createBlockUpdatePackets($this->session->getTypeConverter(), $blocks) as $packet){
+			foreach($world->createBlockUpdatePackets($typeConverter, $blocks) as $packet){
 				$this->session->sendDataPacket($packet);
 			}
 		}
@@ -815,6 +822,18 @@ class InGamePacketHandler extends ChunkRequestPacketHandler{
 		return true;
 	}
 
+	public function handleItemFrameDropItem(ItemFrameDropItemPacket $packet) : bool{
+		if($this->session->getProtocolId() >= ProtocolInfo::PROTOCOL_1_20_70){
+			return false;
+		}
+		$blockPosition = $packet->blockPosition;
+		$block = $this->player->getWorld()->getBlockAt($blockPosition->getX(), $blockPosition->getY(), $blockPosition->getZ());
+		if($block instanceof ItemFrame && $block->getFramedItem() !== null){
+			return $this->player->attackBlock(new Vector3($blockPosition->getX(), $blockPosition->getY(), $blockPosition->getZ()), $block->getFacing());
+		}
+		return false;
+	}
+
 	public function handleBossEvent(BossEventPacket $packet) : bool{
 		return false; //TODO
 	}
@@ -996,6 +1015,11 @@ class InGamePacketHandler extends ChunkRequestPacketHandler{
 	}
 
 	public function handleLecternUpdate(LecternUpdatePacket $packet) : bool{
+		if($packet->dropBook){
+			//Drop book is handled with an interact event on use item transaction
+			return true;
+		}
+
 		$pos = $packet->blockPosition;
 		$chunkX = $pos->getX() >> Chunk::COORD_BIT_SIZE;
 		$chunkZ = $pos->getZ() >> Chunk::COORD_BIT_SIZE;

@@ -25,7 +25,9 @@ namespace pocketmine\entity\object;
 
 use pocketmine\block\Block;
 use pocketmine\block\RuntimeBlockStateRegistry;
+use pocketmine\block\SnowLayer;
 use pocketmine\block\utils\Fallable;
+use pocketmine\block\Water;
 use pocketmine\data\bedrock\block\BlockStateDeserializeException;
 use pocketmine\data\SavedDataLoadingException;
 use pocketmine\entity\Entity;
@@ -39,9 +41,7 @@ use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
-use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
-use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataCollection;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\player\Player;
 use pocketmine\world\format\io\GlobalBlockStateHandlers;
@@ -56,7 +56,7 @@ class FallingBlock extends Entity{
 	private const TAG_TILE = "Tile"; //TAG_Byte
 	private const TAG_DATA = "Data"; //TAG_Byte
 
-	public static function getNetworkTypeId() : string{ return EntityIds::FALLING_BLOCK; }
+	public function getNetworkTypeId() : string{ return EntityIds::FALLING_BLOCK; }
 
 	protected Block $block;
 
@@ -144,7 +144,8 @@ class FallingBlock extends Entity{
 
 				$blockResult = $blockTarget ?? $this->block;
 				$block = $world->getBlock($pos);
-				if(!$block->canBeReplaced() || !$world->isInWorld($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ()) || ($this->onGround && abs($this->location->y - $this->location->getFloorY()) > 0.001)){
+				$down = $world->getBlock($pos->down());
+				if((!$block->canBeReplaced() || !$world->isInWorld($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ()) || ($this->onGround && abs($this->location->y - $this->location->getFloorY()) > 0.001)) && !(($block instanceof SnowLayer || $down instanceof SnowLayer) && $blockResult instanceof SnowLayer)){
 					$world->dropItem($this->location, $this->block->asItem());
 					$world->addSound($pos->add(0.5, 0.5, 0.5), new BlockBreakSound($blockResult));
 				}else{
@@ -152,7 +153,25 @@ class FallingBlock extends Entity{
 					$ev->call();
 					if(!$ev->isCancelled()){
 						$b = $ev->getTo();
+						if($b instanceof SnowLayer){
+							$otherSnow = $down instanceof SnowLayer && $down->getLayers() < SnowLayer::MAX_LAYERS ? $down : $block;
+							if($block->canBeSnowlogged()){
+								$world->setBlockLayer($pos, $block, 1);
+							}elseif($otherSnow instanceof SnowLayer){
+								$layers = $otherSnow->getLayers() + $b->getLayers();
+								$pos = $otherSnow->getPosition();
+								if($layers > SnowLayer::MAX_LAYERS){
+									$world->setBlock($pos->up(), $b->setLayers($layers - SnowLayer::MAX_LAYERS));
+									$b->setLayers(SnowLayer::MAX_LAYERS);
+								}else{
+									$world->setBlock($pos, $b->setLayers($layers));
+								}
+							}
+						}
 						$world->setBlock($pos, $b);
+						if($block instanceof Water && $b->canWaterlogged($block)){
+							$world->setBlockLayer($pos, $block, 1);
+						}
 						if($this->onGround && $b instanceof Fallable && ($sound = $b->getLandSound()) !== null){
 							$world->addSound($pos->add(0.5, 0.5, 0.5), $sound);
 						}

@@ -29,6 +29,7 @@ use pocketmine\data\bedrock\LegacyBiomeIdToStringIdMap;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\convert\BlockTranslator;
 use pocketmine\network\mcpe\convert\TypeConverter;
+use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
@@ -94,7 +95,7 @@ final class ChunkSerializer{
 		$writtenCount = 0;
 
 		[$minSubChunkIndex, $maxSubChunkIndex] = self::getDimensionChunkBounds($dimensionId);
-		for($y = $minSubChunkIndex; $writtenCount < $subChunkCount; ++$y, ++$writtenCount){
+		for($y = $minSubChunkIndex; $writtenCount < $subChunkCount, $y < $maxSubChunkIndex; ++$y, ++$writtenCount){
 			$subChunkStream = clone $stream;
 			self::serializeSubChunk($chunk->getSubChunk($y), $blockTranslator, $subChunkStream, false);
 			$subChunks[] = $subChunkStream->getBuffer();
@@ -106,10 +107,10 @@ final class ChunkSerializer{
 	/**
 	 * @phpstan-param DimensionIds::* $dimensionId
 	 */
-	public static function serializeFullChunk(Chunk $chunk, int $dimensionId, TypeConverter $converter, int $protocolId, ?string $tiles = null) : string{
-		$stream = PacketSerializer::encoder($protocolId);
+	public static function serializeFullChunk(Chunk $chunk, int $dimensionId, TypeConverter $converter, ?string $tiles = null) : string{
+		$stream = PacketSerializer::encoder($converter->getProtocolId());
 
-		foreach(self::serializeSubChunks($chunk, $dimensionId, $converter->getBlockTranslator(), $protocolId) as $subChunk){
+		foreach(self::serializeSubChunks($chunk, $dimensionId, $converter->getBlockTranslator(), $converter->getProtocolId()) as $subChunk){
 			$stream->put($subChunk);
 		}
 
@@ -154,6 +155,8 @@ final class ChunkSerializer{
 
 		$blockStateDictionary = $blockTranslator->getBlockStateDictionary();
 
+		$p_1_20_40 = $stream->getProtocolId() === ProtocolInfo::PROTOCOL_1_20_40;
+		$states = $p_1_20_40 ? $blockStateDictionary->getStates() : [];
 		foreach($layers as $blocks){
 			$bitsPerBlock = $blocks->getBitsPerBlock();
 			$words = $blocks->getWordArray();
@@ -180,7 +183,15 @@ final class ChunkSerializer{
 				}
 			}else{
 				foreach($palette as $p){
-					$stream->put(Binary::writeUnsignedVarInt($blockTranslator->internalIdToNetworkId($p) << 1));
+					$networkId = $blockTranslator->internalIdToNetworkId($p);
+					if($p_1_20_40){
+						$name = $states[$networkId]->getStateName();
+						//TODO: these blocks is known to cause crashes on 1.20.40 clients if they are sent in LevelChunk packet
+						if($name === "minecraft:chiseled_bookshelf" || $name === "minecraft:dispenser" || $name === "minecraft:dropper"){
+							$networkId = $blockStateDictionary->lookupStateIdFromData($blockTranslator->getFallbackStateData());
+						}
+					}
+					$stream->put(Binary::writeUnsignedVarInt($networkId << 1));
 				}
 			}
 		}

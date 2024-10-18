@@ -126,4 +126,8 @@ class FenceGate extends Transparent{
 	public function getFlammability() : int{
 		return $this->woodType->isFlammable() ? 20 : 0;
 	}
+
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
 }

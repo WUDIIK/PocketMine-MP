@@ -75,9 +75,9 @@ final class ItemTranslator{
 
 		$itemData = $this->itemSerializer->serializeType($item, $this->itemDataDowngrader);
 
-		try {
+		try{
 			$numericId = $this->itemTypeDictionary->fromStringId($itemData->getName());
-		} catch (\InvalidArgumentException) {
+		}catch(\InvalidArgumentException){
 			throw new ItemTypeSerializeException("Unknown item type " . $itemData->getName());
 		}
 

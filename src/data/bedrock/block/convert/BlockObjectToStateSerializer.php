@@ -158,8 +158,7 @@ use pocketmine\block\WallBanner;
 use pocketmine\block\WallCoralFan;
 use pocketmine\block\WallSign;
 use pocketmine\block\Water;
-use pocketmine\block\WeightedPressurePlateHeavy;
-use pocketmine\block\WeightedPressurePlateLight;
+use pocketmine\block\WeightedPressurePlate;
 use pocketmine\block\Wheat;
 use pocketmine\block\Wood;
 use pocketmine\block\WoodenButton;
@@ -718,7 +717,6 @@ final class BlockObjectToStateSerializer implements BlockStateSerializer{
 		$this->mapSimple(Blocks::SPRUCE_PLANKS(), Ids::SPRUCE_PLANKS);
 		$this->mapSlab(Blocks::SPRUCE_SLAB(), Ids::SPRUCE_SLAB, Ids::SPRUCE_DOUBLE_SLAB);
 		$this->mapStairs(Blocks::SPRUCE_STAIRS(), Ids::SPRUCE_STAIRS);
-		//wood and slabs still use the old way of storing wood type
 
 		$this->map(Blocks::WARPED_BUTTON(), fn(Button $block) => Helper::encodeButton($block, new Writer(Ids::WARPED_BUTTON)));
 		$this->map(Blocks::WARPED_DOOR(), fn(Door $block) => Helper::encodeDoor($block, new Writer(Ids::WARPED_DOOR)));
@@ -1735,11 +1733,11 @@ final class BlockObjectToStateSerializer implements BlockStateSerializer{
 			return Writer::create(Ids::WEEPING_VINES)
 				->writeInt(StateNames::WEEPING_VINES_AGE, $block->getAge());
 		});
-		$this->map(Blocks::WEIGHTED_PRESSURE_PLATE_HEAVY(), function(WeightedPressurePlateHeavy $block) : Writer{
+		$this->map(Blocks::WEIGHTED_PRESSURE_PLATE_HEAVY(), function(WeightedPressurePlate $block) : Writer{
 			return Writer::create(Ids::HEAVY_WEIGHTED_PRESSURE_PLATE)
 				->writeInt(StateNames::REDSTONE_SIGNAL, $block->getOutputSignalStrength());
 		});
-		$this->map(Blocks::WEIGHTED_PRESSURE_PLATE_LIGHT(), function(WeightedPressurePlateLight $block) : Writer{
+		$this->map(Blocks::WEIGHTED_PRESSURE_PLATE_LIGHT(), function(WeightedPressurePlate $block) : Writer{
 			return Writer::create(Ids::LIGHT_WEIGHTED_PRESSURE_PLATE)
 				->writeInt(StateNames::REDSTONE_SIGNAL, $block->getOutputSignalStrength());
 		});

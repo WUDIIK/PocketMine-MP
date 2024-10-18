@@ -157,4 +157,8 @@ final class Bell extends Transparent{
 			BellAttachmentType::ONE_WALL, BellAttachmentType::TWO_WALLS => $faceHit === Facing::rotateY($this->facing, false) || $faceHit === Facing::rotateY($this->facing, true),
 		};
 	}
+
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
 }

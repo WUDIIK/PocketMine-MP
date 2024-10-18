@@ -205,6 +205,10 @@ class Bed extends Transparent{
 		return parent::getAffectedBlocks();
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
+
 	private function canBeSupportedAt(Block $block) : bool{
 		return $block->getAdjacentSupportType(Facing::DOWN) !== SupportType::NONE;
 	}

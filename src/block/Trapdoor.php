@@ -91,4 +91,8 @@ class Trapdoor extends Transparent{
 		$world->addSound($this->position, new DoorSound());
 		return true;
 	}
+
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
 }

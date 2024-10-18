@@ -85,6 +85,10 @@ class RedstoneRepeater extends Flowable{
 		return true;
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 2;
+	}
+
 	private function canBeSupportedAt(Block $block) : bool{
 		return $block->getAdjacentSupportType(Facing::DOWN) !== SupportType::NONE;
 	}

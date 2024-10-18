@@ -65,6 +65,7 @@ final class BedrockDataFiles{
 	public const ENTITY_ID_MAP_JSON = BEDROCK_DATA_PATH . '/entity_id_map.json';
 	public const ENTITY_IDENTIFIERS_NBT = BEDROCK_DATA_PATH . '/entity_identifiers.nbt';
 	public const ITEM_TAGS_1_20_0_JSON = BEDROCK_DATA_PATH . '/item_tags-1.20.0.json';
+	public const ITEM_TAGS_1_20_60_JSON = BEDROCK_DATA_PATH . '/item_tags-1.20.60.json';
 	public const ITEM_TAGS_JSON = BEDROCK_DATA_PATH . '/item_tags.json';
 	public const LEVEL_SOUND_ID_MAP_JSON = BEDROCK_DATA_PATH . '/level_sound_id_map.json';
 	public const PARTICLE_ID_MAP_JSON = BEDROCK_DATA_PATH . '/particle_id_map.json';

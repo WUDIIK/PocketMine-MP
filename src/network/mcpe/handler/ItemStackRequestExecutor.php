@@ -223,17 +223,10 @@ class ItemStackRequestExecutor{
 	/**
 	 * @throws ItemStackRequestProcessException
 	 */
-	private function assertFirstSpecialTransaction() : void{
+	protected function beginCrafting(int $recipeId, int $repetitions) : void{
 		if($this->specialTransaction !== null){
 			throw new ItemStackRequestProcessException("Another special transaction is already in progress");
 		}
-	}
-
-	/**
-	 * @throws ItemStackRequestProcessException
-	 */
-	protected function beginCrafting(int $recipeId, int $repetitions) : void{
-		$this->assertFirstSpecialTransaction();
 		if($repetitions < 1){
 			throw new ItemStackRequestProcessException("Cannot craft a recipe less than 1 time");
 		}
@@ -269,27 +262,6 @@ class ItemStackRequestExecutor{
 	/**
 	 * @throws ItemStackRequestProcessException
 	 */
-	protected function beginAnvilTransaction(?string $rename) : void{
-		$this->assertFirstSpecialTransaction();
-
-		$currentWindow = $this->player->getCurrentWindow();
-		if(!$currentWindow instanceof AnvilInventory){
-			throw new ItemStackRequestProcessException("Player's current window is not an anvil inventory");
-		}
-
-		$this->specialTransaction = new AnvilTransaction(
-			$this->player,
-			$this->player->getWorld()->getBlock($currentWindow->getHolder()),
-			clone $currentWindow->getItem(0),
-			clone $currentWindow->getItem(1),
-			$rename, []
-		);
-		$this->setNextCreatedItem($this->specialTransaction->getResult());
-	}
-
-	/**
-	 * @throws ItemStackRequestProcessException
-	 */
 	protected function takeCreatedItem(int $count) : Item{
 		if($count < 1){
 			//this should be impossible at the protocol level, but in case of buggy core code this will prevent exploits
@@ -320,7 +292,7 @@ class ItemStackRequestExecutor{
 	 * @throws ItemStackRequestProcessException
 	 */
 	private function assertDoingCrafting() : void{
-		if(!$this->specialTransaction instanceof CraftingTransaction && !$this->specialTransaction instanceof EnchantingTransaction){
+		if(!$this->specialTransaction instanceof CraftingTransaction && !$this->specialTransaction instanceof EnchantingTransaction && !$this->specialTransaction instanceof AnvilTransaction){
 			if($this->specialTransaction === null){
 				throw new ItemStackRequestProcessException("Expected CraftRecipe or CraftRecipeAuto action to precede this action");
 			}else{
@@ -379,14 +351,24 @@ class ItemStackRequestExecutor{
 		}elseif($action instanceof CraftRecipeAutoStackRequestAction){
 			$this->beginCrafting($action->getRecipeId(), $action->getRepetitions());
 		}elseif($action instanceof CraftRecipeOptionalStackRequestAction){
-			$filterStrings = $this->request->getFilterStrings();
-			$filterStringIndex = $action->getFilterStringIndex();
-			$this->beginAnvilTransaction($filterStringIndex >= 0 ? ($filterStrings[$filterStringIndex] ?? null) : null);
-		}elseif($action instanceof CraftingConsumeInputStackRequestAction){
-			if(!$this->specialTransaction instanceof AnvilTransaction){
-				$this->assertDoingCrafting();
+			$window = $this->player->getCurrentWindow();
+			if($window instanceof AnvilInventory){
+				$filterStrings = $this->request->getFilterStrings();
+				$filterStringIndex = $action->getFilterStringIndex();
+
+				$this->specialTransaction = new AnvilTransaction(
+					$this->player,
+					$this->player->getWorld()->getBlock($window->getHolder()),
+					$window->getItem(AnvilInventory::SLOT_INPUT),
+					$window->getItem(AnvilInventory::SLOT_MATERIAL),
+					$filterStringIndex >= 0 ? ($filterStrings[$filterStringIndex] ?? null) : null, []
+				);
+				$this->setNextCreatedItem($this->specialTransaction->getResult());
 			}
-			$this->removeItemFromSlot($action->getSource(), $action->getCount()); //output discarded - we allow the transaction to verify the balance
+		}elseif($action instanceof CraftingConsumeInputStackRequestAction){
+			$this->assertDoingCrafting();
+			$this->removeItemFromSlot($action->getSource(), $action->getCount()); //output discarded - we allow CraftingTransaction to verify the balance
+
 		}elseif($action instanceof CraftingCreateSpecificResultStackRequestAction){
 			$this->assertDoingCrafting();
 

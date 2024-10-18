@@ -93,6 +93,10 @@ class Lantern extends Transparent{
 		}
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
+
 	private function canBeSupportedAt(Block $block, int $face) : bool{
 		return $block->getAdjacentSupportType($face)->hasCenterSupport();
 	}

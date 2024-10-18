@@ -159,4 +159,8 @@ class Vine extends Flowable{
 	public function getFlammability() : int{
 		return 100;
 	}
+
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
 }

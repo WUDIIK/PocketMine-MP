@@ -27,6 +27,7 @@ declare(strict_types=1);
 namespace pocketmine\entity;
 
 use pocketmine\block\Block;
+use pocketmine\block\BlockTypeIds;
 use pocketmine\block\Water;
 use pocketmine\entity\animation\Animation;
 use pocketmine\entity\animation\ItemAnimation;
@@ -645,6 +646,9 @@ abstract class Entity{
 
 		$changedProperties = $this->getDirtyNetworkData();
 		if(count($changedProperties) > 0){
+			if(isset($changedProperties[EntityMetadataProperties::FLAGS2]) && !isset($changedProperties[EntityMetadataProperties::FLAGS])){
+				$changedProperties[EntityMetadataProperties::FLAGS] = $this->networkProperties->getAll()[EntityMetadataProperties::FLAGS];
+			}
 			$this->sendData(null, $changedProperties);
 			$this->networkProperties->clearDirtyProperties();
 		}
@@ -656,7 +660,7 @@ abstract class Entity{
 		}
 		$this->checkBlockIntersectionsNextTick = true;
 
-		if($this->location->y <= 0 && $this->isAlive()){
+		if($this->location->y <= World::Y_MIN - 16 && $this->isAlive()){
 			$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_VOID, 10);
 			$this->attack($ev);
 			$hasUpdate = true;
@@ -1120,6 +1124,12 @@ abstract class Entity{
 
 	public function isUnderwater() : bool{
 		$block = $this->getWorld()->getBlockAt((int) floor($this->location->x), $blockY = (int) floor($y = ($this->location->y + $this->getEyeHeight())), (int) floor($this->location->z));
+		if(!($block instanceof Water)){
+			if($block->getTypeId() === BlockTypeIds::AIR){
+				return false;
+			}
+			$block = $block->getBlockLayer(1);
+		}
 
 		if($block instanceof Water){
 			$f = ($blockY + 1) - ($block->getFluidHeightPercent() - 0.1111111);
@@ -1277,6 +1287,17 @@ abstract class Entity{
 			for($x = $minX; $x <= $maxX; ++$x){
 				for($y = $minY; $y <= $maxY; ++$y){
 					yield $world->getBlockAt($x, $y, $z);
+				}
+			}
+		}
+
+		for($z = $minZ; $z <= $maxZ; ++$z){
+			for($x = $minX; $x <= $maxX; ++$x){
+				for($y = $minY; $y <= $maxY; ++$y){
+					$block = $world->getBlockAtLayer($x, $y, $z, 1);
+					if($block->getTypeId() !== BlockTypeIds::AIR){
+						yield $block;
+					}
 				}
 			}
 		}
@@ -1483,7 +1504,7 @@ abstract class Entity{
 		return $this->hasSpawned;
 	}
 
-	abstract public static function getNetworkTypeId() : string;
+	abstract public function getNetworkTypeId() : string;
 
 	/**
 	 * Called by spawnTo() to send whatever packets needed to spawn the entity to the client.
@@ -1492,7 +1513,7 @@ abstract class Entity{
 		$player->getNetworkSession()->sendDataPacket(AddActorPacket::create(
 			$this->getId(), //TODO: actor unique ID
 			$this->getId(),
-			static::getNetworkTypeId(),
+			$this->getNetworkTypeId(),
 			$this->location->asVector3(),
 			$this->getMotion(),
 			$this->location->pitch,

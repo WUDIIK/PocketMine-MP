@@ -95,5 +95,9 @@ class Hopper extends Transparent{
 		//TODO
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
+
 	//TODO: redstone logic, sucking logic
 }

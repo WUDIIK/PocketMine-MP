@@ -105,5 +105,9 @@ class Lever extends Flowable{
 		return $block->getAdjacentSupportType($face)->hasCenterSupport();
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 2;
+	}
+
 	//TODO
 }

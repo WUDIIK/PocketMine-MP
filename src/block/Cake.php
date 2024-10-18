@@ -95,4 +95,8 @@ class Cake extends BaseCake{
 		}
 		return $clone;
 	}
+
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
 }

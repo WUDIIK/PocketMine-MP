@@ -25,6 +25,7 @@ namespace pocketmine\world\format\io\leveldb;
 
 use pocketmine\block\Block;
 use pocketmine\data\bedrock\BiomeIds;
+use pocketmine\data\bedrock\block\BlockStateData;
 use pocketmine\data\bedrock\block\BlockStateDeserializeException;
 use pocketmine\data\bedrock\block\convert\UnsupportedBlockStateException;
 use pocketmine\nbt\LittleEndianNbtSerializer;
@@ -32,6 +33,7 @@ use pocketmine\nbt\NBT;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
+use pocketmine\network\mcpe\convert\TypeConverter;
 use pocketmine\utils\Binary;
 use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;
@@ -200,7 +202,7 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 
 			//TODO: remember data for unknown states so we can implement them later
 			try{
-				$blockStateData = $this->blockDataUpgrader->upgradeBlockStateNbt($blockStateNbt);
+				$blockStateData = $this->blockDataUpgrader->upgradeBlockStateNbt($blockStateNbt->setInt(BlockStateData::TAG_VERSION, 0));
 			}catch(BlockStateDeserializeException $e){
 				//while not ideal, this is not a fatal error
 				$blockDecodeErrors[] = "Palette offset $i / Upgrade error: " . $e->getMessage() . ", NBT: " . $blockStateNbt->toString();
@@ -320,12 +322,17 @@ class LevelDB extends BaseWorldProvider implements WritableWorldProvider{
 					break;
 				}
 			}catch(BinaryDataException $e){
-				throw new CorruptedChunkException("Failed to deserialize biome palette $i: " . $e->getMessage(), 0, $e);
+				//throw new CorruptedChunkException("Failed to deserialize biome palette $i: " . $e->getMessage(), 0, $e);
+				$result = [];
+				for($subChunkIndex = Chunk::MIN_SUBCHUNK_INDEX; $subChunkIndex <= Chunk::MAX_SUBCHUNK_INDEX; $subChunkIndex++){
+					$result[$subChunkIndex] = new PalettedBlockArray(BiomeIds::OCEAN);
+				}
+				return $result;
 			}
 		}
 		if(!$stream->feof()){
 			//maybe bad output produced by a third-party conversion tool like Chunker
-			$logger->error("Unexpected trailing data after 3D biomes data");
+			//$logger->error("Unexpected trailing data after 3D biomes data");
 		}
 
 		return $result;

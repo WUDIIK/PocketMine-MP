@@ -50,6 +50,10 @@ class DeadBush extends Flowable{
 		return 100;
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
+
 	private function canBeSupportedAt(Block $block) : bool{
 		$supportBlock = $block->getSide(Facing::DOWN);
 		return

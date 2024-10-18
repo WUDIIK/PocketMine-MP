@@ -28,7 +28,6 @@ use pocketmine\block\Block;
 use pocketmine\item\Durable;
 use pocketmine\item\EnchantedBook;
 use pocketmine\item\enchantment\AvailableEnchantmentRegistry;
-use pocketmine\item\enchantment\Enchantment;
 use pocketmine\item\enchantment\EnchantmentInstance;
 use pocketmine\item\enchantment\EnchantmentTransfer;
 use pocketmine\item\enchantment\IncompatibleEnchantMap;
@@ -37,8 +36,6 @@ use pocketmine\item\utils\ItemRepairUtils;
 use pocketmine\player\Player;
 use pocketmine\utils\Limits;
 use pocketmine\world\sound\AnvilUseSound;
-use function array_intersect;
-use function array_merge;
 use function count;
 use function floor;
 use function log;
@@ -216,19 +213,12 @@ class AnvilTransaction extends InventoryTransaction{
 	 */
 	public static function getApplicableEnchants(Item $target, Item $source) : array{
 		$applicableEnchants = [];
-
-		$availableEnchantRegistry = AvailableEnchantmentRegistry::getInstance();
-		$canEnchant = fn(Enchantment $enchantmentType) => (bool) count(
-			array_intersect($target->getEnchantmentTags(), array_merge(
-				$availableEnchantRegistry->getPrimaryItemTags($enchantmentType),
-				$availableEnchantRegistry->getSecondaryItemTags($enchantmentType)
-			))
-		);
+		$availableEnchantment = AvailableEnchantmentRegistry::getInstance();
 
 		foreach($source->getEnchantments() as $enchantment){
 			$enchantmentType = $enchantment->getType();
 			if(
-				!$canEnchant($enchantmentType) &&
+				!$availableEnchantment->isAvailableForItem($enchantmentType, $target) &&
 				!$target instanceof EnchantedBook // enchanted books let in any compatible
 			){
 				continue;

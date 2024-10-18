@@ -21,28 +21,20 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\block;
+namespace pocketmine\event\player;
 
-use pocketmine\block\utils\StaticSupportTrait;
-use pocketmine\math\Facing;
+use pocketmine\event\Cancellable;
+use pocketmine\event\CancellableTrait;
+use pocketmine\player\Player;
 
-class Flower extends Flowable{
-	use StaticSupportTrait;
+class PlayerToggleCrawlEvent extends PlayerEvent implements Cancellable{
+	use CancellableTrait;
 
-	private function canBeSupportedAt(Block $block) : bool{
-		$supportBlock = $block->getSide(Facing::DOWN);
-		return $supportBlock->hasTypeTag(BlockTypeTags::DIRT) || $supportBlock->hasTypeTag(BlockTypeTags::MUD);
+	public function __construct(Player $player, protected bool $isCrawling){
+		$this->player = $player;
 	}
 
-	public function getFlameEncouragement() : int{
-		return 60;
-	}
-
-	public function getFlammability() : int{
-		return 100;
-	}
-
-	public function canBeSnowlogged() : bool{
-		return true;
+	public function isCrawling() : bool{
+		return $this->isCrawling;
 	}
 }

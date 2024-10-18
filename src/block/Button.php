@@ -82,6 +82,10 @@ abstract class Button extends Flowable{
 		}
 	}
 
+	public function getWaterloggingLevel() : int{
+		return 1;
+	}
+
 	public function onNearbyBlockChange() : void{
 		if(!$this->canBeSupportedAt($this, $this->facing)){
 			$this->position->getWorld()->useBreakOn($this->position);

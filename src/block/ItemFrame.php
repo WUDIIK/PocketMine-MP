@@ -164,7 +164,7 @@ class ItemFrame extends Flowable{
 	}
 
 	private function canBeSupportedAt(Block $block, int $face) : bool{
-		return $block->getAdjacentSupportType($face) !== SupportType::NONE;
+		return true;
 	}
 
 	public function onNearbyBlockChange() : void{
@@ -194,5 +194,9 @@ class ItemFrame extends Flowable{
 
 	public function getPickedItem(bool $addUserData = false) : Item{
 		return $this->framedItem !== null ? clone $this->framedItem : parent::getPickedItem($addUserData);
+	}
+
+	public function getWaterloggingLevel() : int{
+		return 2;
 	}
 }

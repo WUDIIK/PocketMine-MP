@@ -78,6 +78,8 @@ class Block{
 	/** @var AxisAlignedBB[]|null */
 	protected ?array $collisionBoxes = null;
 
+	protected int $layer = 0;
+
 	private int $requiredBlockItemStateDataBits;
 	private int $requiredBlockOnlyStateDataBits;
 
@@ -379,7 +381,11 @@ class Block{
 		if($chunk === null){
 			throw new AssumptionFailedError("World::setBlock() should have loaded the chunk before calling this method");
 		}
-		$chunk->setBlockStateId($this->position->x & Chunk::COORD_MASK, $this->position->y, $this->position->z & Chunk::COORD_MASK, $this->getStateId());
+		$chunk->setBlockStateId($this->position->x & Chunk::COORD_MASK, $this->position->y, $this->position->z & Chunk::COORD_MASK, $this->getStateId(), $this->layer);
+
+		if($this->layer !== 0){
+			return;
+		}
 
 		$tileType = $this->idInfo->getTileClass();
 		$oldTile = $world->getTile($this->position);
@@ -438,6 +444,16 @@ class Block{
 	 * @return bool whether the placement should go ahead
 	 */
 	public function place(BlockTransaction $tx, Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($this->getLayer() === 0){
+			if($this->getWaterloggingLevel() >= 1){
+				$water = $this->getBlockLayer(0);
+				if($water instanceof Water && $this->canWaterlogged($water)){
+					$tx->addBlock($blockReplace->position, (clone $water)->setLayer(1));
+				}
+			}elseif($this->getBlockLayer(0)->getTypeId() !== BlockTypeIds::AIR){
+				$tx->addBlock($blockReplace->position, VanillaBlocks::AIR()->setLayer(1));
+			}
+		}
 		$tx->addBlock($blockReplace->position, $this);
 		return true;
 	}
@@ -480,7 +496,14 @@ class Block{
 		if(($t = $world->getTile($this->position)) !== null){
 			$t->onBlockDestroyed();
 		}
-		$world->setBlock($this->position, VanillaBlocks::AIR());
+
+		$block = VanillaBlocks::AIR();
+		$layer1 = $this->getBlockLayer(1);
+		if($layer1->getTypeId() !== BlockTypeIds::AIR){
+			$world->setBlockLayer($this->position, $block, 1);
+			$block = $layer1;
+		}
+		$world->setBlockLayer($this->position, $block, $this->layer);
 		return true;
 	}
 
@@ -760,12 +783,23 @@ class Block{
 
 	}
 
+	public function getBlockLayer(int $layer) : Block{
+		return $this->position->getWorld()->getBlockLayer($this->position, $layer);
+	}
+
 	/**
 	 * Returns the Block on the side $side, works like Vector3::getSide()
 	 *
 	 * @return Block
 	 */
 	public function getSide(int $side, int $step = 1){
+		return $this->getSideLayer($side, 0, $step);
+	}
+
+	/**
+	 * @return Block
+	 */
+	public function getSideLayer(int $side, int $layer = 0, int $step = 1){
 		$position = $this->position;
 		if($position->isValid()){
 			[$dx, $dy, $dz] = Facing::OFFSET[$side] ?? [0, 0, 0];
@@ -981,5 +1015,55 @@ class Block{
 		}
 
 		return $currentHit;
+	}
+
+	/**
+	 * Returns layer index where this block was get/set
+	 */
+	public function getLayer() : int{
+		return $this->layer;
+	}
+
+	public function setLayer(int $layer) : static{
+		$this->layer = $layer;
+		return $this;
+	}
+
+	public function isLayerSupported(int $layer) : bool{
+		return $layer === 0 || ($this->canBeSnowlogged() && $layer === 1);
+	}
+
+	/**
+	 * Returns the waterlogging behavior of this block.
+	 */
+	public function getWaterloggingLevel() : int{
+		return 0;
+	}
+
+	/**
+	 * Returns whether water can flow into this block.
+	 */
+	public function mayWaterloggingFlowInto() : bool{
+		return $this->getWaterloggingLevel() > 1;
+	}
+
+	public function canWaterlogged(Liquid $water) : bool{
+		return (!$water->isFalling() && $water->getDecay() === 0 && $this->getWaterloggingLevel() >= 1) ||
+			($water->getDecay() > 0 && $this->getWaterloggingLevel() >= 2);
+	}
+
+	/**
+	 * Returns whether the second layer of this block is water.
+	 */
+	public function isWaterlogged() : bool{
+		return $this->getBlockLayer(1) instanceof Water;
+	}
+
+	public function canBeSnowlogged() : bool{
+		return false;
+	}
+
+	public function isSnowlogged() : bool{
+		return $this instanceof SnowLayer && $this->getBlockLayer(1)->canBeSnowlogged();
 	}
 }
